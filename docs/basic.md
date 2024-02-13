@@ -39,3 +39,40 @@ Jailbreaking is the process of using prompt injection to bypass a Chatbot's safe
 - Superior Model: Pretending to be a superior model that has the authority to override safety features.
 - Sudo Mode: Tricking the model into believing it has alternative "modes" in which it can bypass safety and moderation features.
 - An Extemely popular jailbreaking technique used on ChatGPT. There are not a whole set of different DAN prompts, a new one is usually contstructed when the OpenAI team is able to get ChatGPT to not respond to an older version.
+
+
+### Filtering
+Filtering is a common technique for preventing prompt hacking. There are a few types of filtering, but the basic idea is to check for words and phrase in the initial prompt or the output that should be blocked. You can use a blocklist or an allowlist for this purpose.
+
+Blocklist Filtering: A blocklist is a list of words and phrases that should be blocked from user prompts. For example, you can write some simple code to check for text in user input strings in order to prevent the input from including certain words or phrases related to sensitive topics such as race, gender discrimination, or self-harm.
+
+Allowlist Filtering: An allowlist is a list of words and phrases that should be allowed in the user input. Similarly to blocklisting, you can write similar string-checking functions to only accept the words and phrases in the allowlist and block everything else.
+
+### Instruction Defense
+The instruction defense is a way of instructing prompts explicitly to be wary of attempts to use different hacking methods. You can add instructions to a prompt which encourage the model to be careful about what comes next in the user input.
+
+### Post-Prompting
+The post-prompting defense1 simply puts the user input before the prompt.
+
+Post-prompting, although seemingly simple, is yet another effective defense against prompt hacking methods like prompt injection. This technique takes advantage of the fact that the model is more inclined to follow the last instruction it sees.
+
+
+### Random Sequence Enclosure
+Random sequence enclosure is yet another defense. This method encloses the user input between two random sequences of characters.
+
+Random sequence enclosure can help disallow user attempts to input instruction overrides by helping the LLM identify a clear distinction between user input and developer prompts.
+
+### Sandwich Defense
+The sandwich defense1 involves sandwiching user input between two prompts.
+
+
+### XML Tagging
+XML tagging can be a very robust defense when executed properly (in particular with the XML+escape). It involves surrounding user input by XML tags (e.g. <user_input>).
+
+
+### Separate LLM Evaluation
+Separate LLM evaluation is another defensive measure against prompt hacking that uses another LLM instance with additional instructions to identify potential risks in a user input. A separate prompted LLM can be used to judge whether a prompt is adversarial.
+
+Separate LLM evaluation allows the developer to add an extra layer of moderation to each user input and have another prompt instruction determine whether or not it could lead to an unwanted output. You can use this technique to catch attempts at prompt hacking and ensure the reliability of your model outputs.
+
+
