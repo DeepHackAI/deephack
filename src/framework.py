@@ -1,39 +1,105 @@
-# Set up your OpenAI API key
-openai.api_key = OPENAI_API_KEY
+from typing import Any, Dict, List, Optional
+from .config import OPENAI_API_KEY, DEFAULT_MODEL, MAX_TOKENS, SECURITY_BLOCK_MESSAGE
+from .evaluator.evaluator_chatgpt import ChatGPTEvaluator
+from .evaluator.base_evaluator import BaseEvaluator
+import openai
 
-# Define function for printing long strings as markdown
-md_print = lambda text: display(Markdown(text))
+class DeepHackFramework:
+    """Core framework for AI security testing and evaluation.
 
-# Create a chatbot class
+    This class provides the main interface for testing and evaluating AI models,
+    implementing both offensive and defensive security measures.
+    """
 
-class ChatBot:
-    def __init__(self):
-        # List to keep track of conversation history
-        self.context = []
+    def __init__(self, model_name: str = DEFAULT_MODEL, evaluator: Optional[BaseEvaluator] = None):
+        """Initialize the framework.
 
-    def new_message(self, prompt):
-        # Append user prompt to chatbot context
-        self.context.append({"role": "user", "content": prompt})
+        Args:
+            model_name: Name of the model to test
+            evaluator: Optional custom evaluator instance
+        """
+        self.model_name = model_name
+        self.openai = openai
+        self.openai.api_key = OPENAI_API_KEY
+        self.evaluator = evaluator or ChatGPTEvaluator(model_name)
+        self.conversation_history: List[Dict[str, str]] = []
 
-        # Create assistant response
-        completion = openai.chat.completions.create(
-          model="gpt-3.5-turbo",
-          messages=[{"role": "user", "content": prompt}]
-        )
+    def test_prompt(self, prompt: str) -> Dict[str, Any]:
+        """Test a prompt for potential security vulnerabilities.
 
-        # Parse assistant response
-        chat_response = completion.choices[0].message.content
+        Args:
+            prompt: The prompt to test
 
-        # Add assistant response to context
-        self.context.append({"role": "assistant", "content": chat_response})
+        Returns:
+            Dictionary containing test results and security analysis
+        """
+        try:
+            # Get model response
+            completion = self.openai.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=MAX_TOKENS
+            )
+            response = completion.choices[0].message.content
 
-        # Print out conversation
-        for message in self.context:
-            if message["role"] == "user":
-                md_print(f'User: {message["content"]}')
-            else:
-                md_print(f'GPT: {message["content"]}')
+            # Evaluate response
+            evaluation = self.evaluator.evaluate(prompt, response)
 
+            # Update conversation history
+            self.conversation_history.append({
+                "role": "user",
+                "content": prompt
+            })
+            self.conversation_history.append({
+                "role": "assistant",
+                "content": response
+            })
+
+            return {
+                "prompt": prompt,
+                "response": response,
+                "evaluation": evaluation,
+                "is_safe": evaluation.get("is_safe", False),
+                "security_issues": evaluation.get("security_issues", [])
+            }
+
+        except Exception as e:
+            return {
+                "error": str(e),
+                "is_safe": False,
+                "security_issues": [f"Test failed: {str(e)}"]
+            }
+
+    def batch_test(self, prompts: List[str]) -> List[Dict[str, Any]]:
+        """Test multiple prompts in batch.
+
+        Args:
+            prompts: List of prompts to test
+
+        Returns:
+            List of dictionaries containing test results
+        """
+        return [self.test_prompt(p) for p in prompts]
+
+    def get_evaluation_summary(self) -> Dict[str, Any]:
+        """Get a summary of all evaluations performed.
+
+        Returns:
+            Dictionary containing evaluation statistics
+        """
+        return self.evaluator.get_summary()
+
+    def clear_history(self) -> None:
+        """Clear the conversation history."""
+        self.conversation_history = []
+
+    def get_history(self) -> List[Dict[str, str]]:
+        """Get the conversation history.
+
+        Returns:
+            List of conversation messages
+        """
+        return self.conversation_history
 
 # Create chatbot instance
 chatbot1 = ChatBot()
