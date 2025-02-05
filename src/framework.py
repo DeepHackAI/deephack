@@ -3,8 +3,13 @@ from .config import OPENAI_API_KEY, DEFAULT_MODEL, MAX_TOKENS, SECURITY_BLOCK_ME
 from .evaluator.evaluator_chatgpt import ChatGPTEvaluator
 from .evaluator.base_evaluator import BaseEvaluator
 from .monitor import SecurityMonitor
+from .defense.threat_intelligence import ThreatIntelligence
 import openai
 import re
+import importlib
+import logging
+
+logger = logging.getLogger(__name__)
 
 class DeepHackFramework:
     """Core framework for AI security testing and evaluation.
@@ -30,6 +35,7 @@ class DeepHackFramework:
         self.plugins = self._load_plugins(plugins or [])
         self.semantic_analyzer = SemanticAnalyzer()
         self.behavior_monitor = BehaviorMonitor()
+        self.threat_intelligence = ThreatIntelligence()
 
     def _load_plugins(self, plugin_names: List[str]) -> Dict[str, Any]:
         """Load security plugins dynamically.
@@ -185,6 +191,15 @@ class DeepHackFramework:
             Dictionary containing test results and security analysis
         """
         try:
+            # Threat intelligence analysis
+            threat_analysis = self.threat_intelligence.analyze_behavior(prompt, '')
+            if threat_analysis['risk_level'] > 0.7:
+                return {
+                    'error': 'High threat risk detected',
+                    'is_safe': False,
+                    'security_issues': threat_analysis['threat_indicators']
+                }
+
             # Semantic analysis
             semantic_risk = self.semantic_analyzer.analyze(prompt)
             if semantic_risk['risk_level'] > RISK_THRESHOLD:
