@@ -128,3 +128,85 @@ class SecurityMonitor:
             'event_types': event_types,
             'violations_by_severity': violations_by_severity
         }
+
+    def analyze_behavior_pattern(self, model_name: str, timeframe: str = '1h') -> Dict[str, Any]:
+        """Analyze model behavior patterns over a specified timeframe.
+
+        Args:
+            model_name: Name of the AI model
+            timeframe: Time period for analysis (e.g., '1h', '24h', '7d')
+
+        Returns:
+            Dictionary containing behavior analysis results
+        """
+        relevant_events = [e for e in self.events 
+                         if e['type'] == 'model_behavior' 
+                         and e['details']['model_name'] == model_name]
+        
+        # Analyze response patterns
+        response_patterns = {
+            'potentially_harmful': 0,
+            'safety_violations': 0,
+            'ethical_concerns': 0,
+            'instruction_adherence': 0
+        }
+        
+        for event in relevant_events:
+            eval_results = event['details']['evaluation']
+            if not eval_results.get('is_aligned', True):
+                if 'value_issues' in eval_results.get('issues', {}):
+                    response_patterns['potentially_harmful'] += 1
+                if 'safety_issues' in eval_results.get('issues', {}):
+                    response_patterns['safety_violations'] += 1
+                if 'ethical_issues' in eval_results.get('issues', {}):
+                    response_patterns['ethical_concerns'] += 1
+                if 'instruction_issues' in eval_results.get('issues', {}):
+                    response_patterns['instruction_adherence'] += 1
+        
+        return {
+            'model_name': model_name,
+            'timeframe': timeframe,
+            'total_interactions': len(relevant_events),
+            'response_patterns': response_patterns,
+            'risk_level': self._calculate_risk_level(response_patterns)
+        }
+    
+    def _calculate_risk_level(self, patterns: Dict[str, int]) -> str:
+        """Calculate overall risk level based on behavior patterns.
+
+        Args:
+            patterns: Dictionary of behavior pattern counts
+
+        Returns:
+            Risk level assessment (low, medium, high, critical)
+        """
+        total_issues = sum(patterns.values())
+        if total_issues == 0:
+            return 'low'
+        elif total_issues < 5:
+            return 'medium'
+        elif total_issues < 10:
+            return 'high'
+        return 'critical'
+
+    def get_threat_summary(self) -> Dict[str, Any]:
+        """Generate a comprehensive threat summary.
+
+        Returns:
+            Dictionary containing threat analysis summary
+        """
+        violations = [e for e in self.events if e['type'] == 'security_violation']
+        threat_levels = {'low': 0, 'medium': 0, 'high': 0, 'critical': 0}
+        
+        for violation in violations:
+            severity = violation['details']['severity']
+            threat_levels[severity] = threat_levels.get(severity, 0) + 1
+        
+        return {
+            'total_violations': len(violations),
+            'threat_levels': threat_levels,
+            'recent_critical_events': [
+                v for v in violations 
+                if v['details']['severity'] == 'critical'
+            ][-5:]
+        }
