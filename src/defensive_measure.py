@@ -1,4 +1,105 @@
 import openai
+from typing import List, Dict, Any
+from .config import OPENAI_API_KEY
+from .agent.semantic_analyzer import SemanticAnalyzer
+from .agent.behavior_monitor import BehaviorMonitor
+from .llama_guard import LLamaGuardValidator
+from .firewall import AIFirewall
+
+class DefensiveMeasure:
+    def __init__(self):
+        self.openai = openai
+        self.openai.api_key = OPENAI_API_KEY
+        self.semantic_analyzer = SemanticAnalyzer()
+        self.behavior_monitor = BehaviorMonitor()
+        self.llama_guard = LLamaGuardValidator()
+        self.firewall = AIFirewall()
+        self.conversation_history: List[Dict[str, str]] = []
+
+    def validate_input(self, prompt: str) -> Dict[str, Any]:
+        """Comprehensive input validation using multiple security layers.
+
+        Args:
+            prompt: User input prompt
+
+        Returns:
+            Dictionary containing validation results and risk assessment
+        """
+        # Semantic analysis
+        semantic_risk = self.semantic_analyzer.analyze(prompt)
+        
+        # Behavior monitoring
+        behavior_risk = self.behavior_monitor.assess(prompt, self.conversation_history)
+        
+        # LLamaGuard validation
+        llama_guard_result = self.llama_guard.validate(prompt)
+        
+        # Firewall check
+        firewall_result = self.firewall.check_prompt(prompt)
+        
+        return {
+            'is_safe': all([semantic_risk['is_safe'], 
+                           behavior_risk['is_safe'],
+                           llama_guard_result['is_safe'],
+                           firewall_result['is_safe']]),
+            'semantic_risk': semantic_risk,
+            'behavior_risk': behavior_risk,
+            'llama_guard_result': llama_guard_result,
+            'firewall_result': firewall_result
+        }
+
+    def process_message(self, prompt: str) -> str:
+        """Process and validate user message with all defensive measures.
+
+        Args:
+            prompt: User input prompt
+
+        Returns:
+            Processed response or security warning
+        """
+        # Validate input
+        validation_result = self.validate_input(prompt)
+        
+        if not validation_result['is_safe']:
+            return self._generate_security_warning(validation_result)
+        
+        # Process safe message
+        try:
+            completion = self.openai.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            response = completion.choices[0].message.content
+            
+            # Update conversation history
+            self.conversation_history.append({"role": "user", "content": prompt})
+            self.conversation_history.append({"role": "assistant", "content": response})
+            
+            return response
+            
+        except Exception as e:
+            return f"Error processing message: {str(e)}"
+
+    def _generate_security_warning(self, validation_result: Dict[str, Any]) -> str:
+        """Generate detailed security warning based on validation results.
+
+        Args:
+            validation_result: Dictionary containing validation results
+
+        Returns:
+            Formatted security warning message
+        """
+        warnings = []
+        if not validation_result['semantic_risk']['is_safe']:
+            warnings.append(f"Semantic Risk: {validation_result['semantic_risk']['reason']}")
+        if not validation_result['behavior_risk']['is_safe']:
+            warnings.append(f"Behavior Risk: {validation_result['behavior_risk']['reason']}")
+        if not validation_result['llama_guard_result']['is_safe']:
+            warnings.append(f"LLamaGuard: {validation_result['llama_guard_result']['reason']}")
+        if not validation_result['firewall_result']['is_safe']:
+            warnings.append(f"Firewall: {validation_result['firewall_result']['reason']}")
+            
+        return "Security Warning: Input blocked due to potential risks:\n" + "\n".join(warnings)
 
 # Set up your OpenAI API key
 openai.api_key = OPENAI_API_KEY

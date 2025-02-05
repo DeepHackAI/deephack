@@ -13,12 +13,13 @@ class DeepHackFramework:
     implementing both offensive and defensive security measures.
     """
 
-    def __init__(self, model_name: str = DEFAULT_MODEL, evaluator: Optional[BaseEvaluator] = None):
+    def __init__(self, model_name: str = DEFAULT_MODEL, evaluator: Optional[BaseEvaluator] = None, plugins: List[str] = None):
         """Initialize the framework.
 
         Args:
             model_name: Name of the model to test
             evaluator: Optional custom evaluator instance
+            plugins: List of plugin names to load
         """
         self.model_name = model_name
         self.openai = openai
@@ -26,6 +27,49 @@ class DeepHackFramework:
         self.evaluator = evaluator or ChatGPTEvaluator(model_name)
         self.conversation_history: List[Dict[str, str]] = []
         self.monitor = SecurityMonitor()
+        self.plugins = self._load_plugins(plugins or [])
+        self.semantic_analyzer = SemanticAnalyzer()
+        self.behavior_monitor = BehaviorMonitor()
+
+    def _load_plugins(self, plugin_names: List[str]) -> Dict[str, Any]:
+        """Load security plugins dynamically.
+
+        Args:
+            plugin_names: List of plugin names to load
+
+        Returns:
+            Dictionary of loaded plugin instances
+        """
+        plugins = {}
+        for name in plugin_names:
+            try:
+                module = importlib.import_module(f'src.plugins.{name}')
+                plugins[name] = module.Plugin()
+            except ImportError as e:
+                logger.warning(f'Failed to load plugin {name}: {e}')
+        return plugins
+
+    def run_plugins(self, prompt: str, response: str) -> List[Dict[str, Any]]:
+        """Run all loaded plugins on prompt and response.
+
+        Args:
+            prompt: User prompt
+            response: Model response
+
+        Returns:
+            List of plugin evaluation results
+        """
+        results = []
+        for name, plugin in self.plugins.items():
+            try:
+                result = plugin.evaluate(prompt, response)
+                results.append({
+                    'plugin': name,
+                    'result': result
+                })
+            except Exception as e:
+                logger.error(f'Plugin {name} failed: {e}')
+        return results
 
     def sanitize_prompt(self, prompt: str) -> str:
         """Sanitize input prompt to prevent injection attacks.
@@ -141,6 +185,15 @@ class DeepHackFramework:
             Dictionary containing test results and security analysis
         """
         try:
+            # Semantic analysis
+            semantic_risk = self.semantic_analyzer.analyze(prompt)
+            if semantic_risk['risk_level'] > RISK_THRESHOLD:
+                return {
+                    'error': 'High semantic risk detected',
+                    'is_safe': False,
+                    'security_issues': semantic_risk['issues']
+                }
+
             # Sanitize input prompt
             sanitized_prompt = self.sanitize_prompt(prompt)
             
@@ -148,26 +201,45 @@ class DeepHackFramework:
             is_safe, content_issues = self.apply_content_filter(sanitized_prompt)
             if not is_safe:
                 return {
-                    "error": "Content filter violation",
-                    "is_safe": False,
-                    "security_issues": content_issues
+                    'error': 'Content filter violation',
+                    'is_safe': False,
+                    'security_issues': content_issues
                 }
 
             # Get model response
             completion = self.openai.chat.completions.create(
                 model=self.model_name,
-                messages=[{"role": "user", "content": sanitized_prompt}],
+                messages=[{'role': 'user', 'content': sanitized_prompt}],
                 max_tokens=MAX_TOKENS
             )
             response = completion.choices[0].message.content
 
+            # Run plugins
+            plugin_results = self.run_plugins(sanitized_prompt, response)
+            for result in plugin_results:
+                if not result.get('result', {}).get('is_safe', True):
+                    return {
+                        'error': f'Plugin {result["plugin"]} detected issues',
+                        'is_safe': False,
+                        'security_issues': result['result'].get('issues', [])
+                    }
+
+            # Monitor behavior
+            behavior_analysis = self.behavior_monitor.analyze(sanitized_prompt, response)
+            if not behavior_analysis['is_safe']:
+                return {
+                    'error': 'Suspicious behavior detected',
+                    'is_safe': False,
+                    'security_issues': behavior_analysis['issues']
+                }
+
             # Validate response
             validation_results = self.validate_response(response)
-            if not validation_results["is_safe"]:
+            if not validation_results['is_safe']:
                 return {
-                    "error": "Response validation failed",
-                    "is_safe": False,
-                    "security_issues": validation_results["issues"]
+                    'error': 'Response validation failed',
+                    'is_safe': False,
+                    'security_issues': validation_results['issues']
                 }
 
             # Evaluate response
@@ -175,12 +247,12 @@ class DeepHackFramework:
 
             # Update conversation history and log model behavior
             self.conversation_history.append({
-                "role": "user",
-                "content": sanitized_prompt
+                'role': 'user',
+                'content': sanitized_prompt
             })
             self.conversation_history.append({
-                "role": "assistant",
-                "content": response
+                'role': 'assistant',
+                'content': response
             })
             
             # Log model behavior and any security issues
@@ -191,26 +263,29 @@ class DeepHackFramework:
                 evaluation
             )
             
-            if not evaluation.get("is_safe", False):
+            if not evaluation.get('is_safe', False):
                 self.monitor.log_security_violation(
-                    "unsafe_response",
-                    "high",
-                    {"issues": evaluation.get("security_issues", [])}
+                    'unsafe_response',
+                    'high',
+                    {'issues': evaluation.get('security_issues', [])}
                 )
 
             return {
-                "prompt": sanitized_prompt,
-                "response": response,
-                "evaluation": evaluation,
-                "is_safe": evaluation.get("is_safe", False),
-                "security_issues": evaluation.get("security_issues", [])
+                'prompt': sanitized_prompt,
+                'response': response,
+                'evaluation': evaluation,
+                'plugin_results': plugin_results,
+                'semantic_analysis': semantic_risk,
+                'behavior_analysis': behavior_analysis,
+                'is_safe': evaluation.get('is_safe', False),
+                'security_issues': evaluation.get('security_issues', [])
             }
 
         except Exception as e:
             return {
-                "error": str(e),
-                "is_safe": False,
-                "security_issues": [f"Test failed: {str(e)}"]
+                'error': str(e),
+                'is_safe': False,
+                'security_issues': [f'Test failed: {str(e)}']
             }
 
     def batch_test(self, prompts: List[str]) -> List[Dict[str, Any]]:
