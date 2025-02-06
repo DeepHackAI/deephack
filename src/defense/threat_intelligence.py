@@ -92,24 +92,119 @@ class ThreatIntelligence:
         return 'general'
 
     def _check_injection_patterns(self, prompt: str) -> float:
-        """Check for prompt injection patterns."""
+        """Check for prompt injection patterns with advanced pattern matching."""
         risk_score = 0.0
         injection_patterns = [
+            # Basic injection patterns
             r'ignore previous instructions',
             r'disregard (all|previous)',
             r'you are now [^.,]*',
             r'system:',
             r'\{\{.*?\}\}',
+            
+            # Advanced manipulation patterns
             r'\b(override|bypass|hack|exploit)\b.*\b(system|instruction|rule|filter)\b',
             r'\b(pretend|roleplay|assume)\b.*\b(you are|you\'re)\b',
             r'\b(ignore|forget|disregard)\b.*\b(ethics|rules|guidelines|policies)\b',
             r'\b(jailbreak|root|admin|sudo)\b.*\b(access|mode|command)\b',
-            r'\b(disable|remove|circumvent)\b.*\b(restriction|limitation|filter|safeguard)\b'
+            r'\b(disable|remove|circumvent)\b.*\b(restriction|limitation|filter|safeguard)\b',
+            
+            # Context manipulation patterns
+            r'\b(switch|change)\b.*\b(context|mode|personality)\b',
+            r'\b(act|behave)\b.*\b(like|as|if)\b',
+            r'\b(no|without)\b.*\b(filter|restriction|limit|constraint)\b',
+            
+            # Command injection patterns
+            r'\b(execute|run|perform)\b.*\b(command|instruction|operation)\b',
+            r'\b(gain|elevate|escalate)\b.*\b(privilege|access|permission)\b'
+        ]
         
-        for pattern in injection_patterns:
-            if any(p.lower() in prompt.lower() for p in injection_patterns):
-                risk_score += 0.2
+        # Weight patterns differently based on severity
+        severity_weights = {
+            'basic': 0.2,
+            'advanced': 0.3,
+            'context': 0.25,
+            'command': 0.35
+        }
+        
+        # Check patterns with appropriate weights
+        for i, pattern in enumerate(injection_patterns):
+            if re.search(pattern, prompt, re.IGNORECASE):
+                if i < 5:  # Basic patterns
+                    risk_score += severity_weights['basic']
+                elif i < 10:  # Advanced patterns
+                    risk_score += severity_weights['advanced']
+                elif i < 13:  # Context patterns
+                    risk_score += severity_weights['context']
+                else:  # Command patterns
+                    risk_score += severity_weights['command']
+        
         return min(risk_score, 1.0)
+
+    def _analyze_patterns(self, prompt: str, response: str) -> Dict[str, Any]:
+        """Analyze behavioral patterns with enhanced anomaly detection."""
+        # Basic metrics
+        prompt_length = len(prompt)
+        response_length = len(response)
+        prompt_words = prompt.split()
+        response_words = response.split()
+        
+        # Advanced metrics
+        prompt_unique_ratio = len(set(prompt_words)) / len(prompt_words) if prompt_words else 0
+        response_unique_ratio = len(set(response_words)) / len(response_words) if response_words else 0
+        avg_word_length_prompt = sum(len(word) for word in prompt_words) / len(prompt_words) if prompt_words else 0
+        avg_word_length_response = sum(len(word) for word in response_words) / len(response_words) if response_words else 0
+        
+        # Behavioral analysis
+        return {
+            'prompt_metrics': {
+                'length': prompt_length,
+                'word_count': len(prompt_words),
+                'unique_word_ratio': prompt_unique_ratio,
+                'avg_word_length': avg_word_length_prompt,
+                'complexity': self._calculate_complexity(prompt)
+            },
+            'response_metrics': {
+                'length': response_length,
+                'word_count': len(response_words),
+                'unique_word_ratio': response_unique_ratio,
+                'avg_word_length': avg_word_length_response,
+                'complexity': self._calculate_complexity(response)
+            },
+            'interaction_type': self._classify_interaction(prompt, response),
+            'anomaly_indicators': self._detect_anomalies(prompt, response)
+        }
+
+    def _detect_anomalies(self, prompt: str, response: str) -> List[str]:
+        """Detect behavioral anomalies with enhanced pattern recognition."""
+        anomalies = []
+        
+        # Length-based anomalies
+        if len(prompt) > 1000:
+            anomalies.append('long_prompt')
+        if len(response) > 2000:
+            anomalies.append('long_response')
+            
+        # Content-based anomalies
+        prompt_words = prompt.split()
+        response_words = response.split()
+        
+        # Check for repetitive patterns
+        if len(set(prompt_words)) < len(prompt_words) / 3:
+            anomalies.append('repetitive_prompt')
+        if len(set(response_words)) < len(response_words) / 3:
+            anomalies.append('repetitive_response')
+            
+        # Check for unusual character distributions
+        special_chars_prompt = sum(1 for c in prompt if not c.isalnum() and not c.isspace())
+        special_chars_response = sum(1 for c in response if not c.isalnum() and not c.isspace())
+        
+        if special_chars_prompt / len(prompt) > 0.3:
+            anomalies.append('high_special_chars_prompt')
+        if special_chars_response / len(response) > 0.3:
+            anomalies.append('high_special_chars_response')
+            
+        return anomalies
 
     def _check_sensitive_data_exposure(self, response: str) -> float:
         """Check for sensitive data exposure in response."""
