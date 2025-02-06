@@ -99,8 +99,12 @@ class ThreatIntelligence:
             r'disregard (all|previous)',
             r'you are now [^.,]*',
             r'system:',
-            r'\{\{.*?\}\}'
-        ]
+            r'\{\{.*?\}\}',
+            r'\b(override|bypass|hack|exploit)\b.*\b(system|instruction|rule|filter)\b',
+            r'\b(pretend|roleplay|assume)\b.*\b(you are|you\'re)\b',
+            r'\b(ignore|forget|disregard)\b.*\b(ethics|rules|guidelines|policies)\b',
+            r'\b(jailbreak|root|admin|sudo)\b.*\b(access|mode|command)\b',
+            r'\b(disable|remove|circumvent)\b.*\b(restriction|limitation|filter|safeguard)\b'
         
         for pattern in injection_patterns:
             if any(p.lower() in prompt.lower() for p in injection_patterns):
