@@ -191,22 +191,51 @@ class SemanticAnalyzer:
         return min(sensitivity_score, 1.0)
 
     def _detect_attack_vectors(self, content: str) -> List[str]:
-        """Detect potential attack vectors in content."""
+        """Detect potential attack vectors in content with enhanced pattern recognition."""
         attack_vectors = []
         
-        # Check for prompt injection attempts
+        # Enhanced prompt injection detection
         if self._check_prompt_injection(content):
             attack_vectors.append('prompt_injection')
             
-        # Check for jailbreak attempts
+        # Enhanced jailbreak detection
         if self._check_jailbreak_attempt(content):
             attack_vectors.append('jailbreak_attempt')
             
-        # Check for social engineering
+        # Enhanced social engineering detection
         if self._check_social_engineering(content):
             attack_vectors.append('social_engineering')
             
+        # Add new attack vector detection
+        if self._check_data_exfiltration(content):
+            attack_vectors.append('data_exfiltration')
+            
+        if self._check_model_manipulation(content):
+            attack_vectors.append('model_manipulation')
+            
         return attack_vectors
+
+    def _check_data_exfiltration(self, content: str) -> bool:
+        """Check for data exfiltration attempts."""
+        exfiltration_patterns = [
+            r'\b(extract|dump|leak|steal)\b.*\b(data|information|content)\b',
+            r'\b(send|transfer|export)\b.*\b(to|through|via)\b',
+            r'\b(base64|encode|encrypt)\b.*\b(output|response)\b'
+        ]
+        
+        return any(re.search(pattern, content, re.IGNORECASE) 
+                  for pattern in exfiltration_patterns)
+
+    def _check_model_manipulation(self, content: str) -> bool:
+        """Check for model manipulation attempts."""
+        manipulation_patterns = [
+            r'\b(control|manipulate|influence)\b.*\b(model|system|behavior)\b',
+            r'\b(train|retrain|learn)\b.*\b(new|different|alternative)\b',
+            r'\b(modify|change|alter)\b.*\b(personality|response|output)\b'
+        ]
+        
+        return any(re.search(pattern, content, re.IGNORECASE) 
+                  for pattern in manipulation_patterns)
 
     def _check_prompt_injection(self, content: str) -> bool:
         """Check for prompt injection attempts."""
