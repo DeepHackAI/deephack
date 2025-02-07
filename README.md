@@ -23,11 +23,23 @@ DeepHack provides a comprehensive suite of tools and methodologies for testing, 
 - Garak Evaluator
 - MindGuard Integration
 - Inspect Evaluator
+- Deepseek Evaluator: Specialized security metrics and vulnerability detection for Deepseek models
 
 ### Security Components
 - AI Firewall
 - LLamaGuard Integration
 - Agent Smith Defense System
+- Semantic Analysis System
+
+### Deepseek-Specific Features
+- **Advanced Pattern Detection**: Sophisticated detection of vulnerability patterns specific to Deepseek models
+- **Behavioral Analysis**: Real-time monitoring of model behavior and response patterns
+- **Security Metrics**: Specialized metrics for evaluating Deepseek model outputs
+  - Vulnerability pattern detection
+  - Injection attempt identification
+  - Semantic attack analysis
+  - Risk scoring and assessment
+- **Safety Verification**: Comprehensive content safety evaluation system
 
 ## Project Structure
 ```
@@ -51,6 +63,7 @@ DeepHack provides a comprehensive suite of tools and methodologies for testing, 
 - Multiple defensive measure implementations
 - Automated evaluation systems
 - Extensive documentation and testing datasets
+- Deepseek model security analysis and protection
 
 ## Getting Started
 
@@ -98,6 +111,21 @@ chatbot = ChatBot()
 
 # Test with defensive measures
 chatbot.new_message(user_input)
+```
+
+### Deepseek Model Evaluation
+```python
+from src.evaluator.evaluator_deepseek import DeepseekEvaluator
+
+# Initialize Deepseek evaluator
+evaluator = DeepseekEvaluator()
+
+# Evaluate prompt safety
+result = evaluator.evaluate_prompt("Your prompt here")
+
+# Analyze response
+safety_analysis = evaluator.evaluate_response("Model response here")
+```
 ```
 
 ## Contributing
